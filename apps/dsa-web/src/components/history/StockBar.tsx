@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useState, useCallback, useRef, useEffect, useId } from 'react';
+import { useState, useCallback, useRef, useEffect, useId, useMemo } from 'react';
 import { Badge, Button, ScrollArea } from '../common';
 import { DashboardPanelHeader, DashboardStateBlock } from '../dashboard';
 import { StockBarItemComponent } from './StockBarItem';
@@ -32,10 +32,20 @@ export const StockBar: React.FC<StockBarProps> = ({
 }) => {
   const isMarketReview = (code: string) => code === 'MARKET';
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'time' | 'score'>('time');
   const selectAllRef = useRef<HTMLInputElement>(null);
   const selectAllId = useId();
 
-  const deletableItems = items.filter((item) => !isMarketReview(item.stockCode));
+  const sortedItems = useMemo(() => {
+    const market = items.filter((i) => isMarketReview(i.stockCode));
+    const rest = items.filter((i) => !isMarketReview(i.stockCode));
+    if (sortBy === 'score') {
+      rest.sort((a, b) => (b.sentimentScore ?? -1) - (a.sentimentScore ?? -1));
+    }
+    return [...market, ...rest];
+  }, [items, sortBy]);
+
+  const deletableItems = sortedItems.filter((item) => !isMarketReview(item.stockCode));
   const selectedCount = [...selectedCodes].filter((code) => deletableItems.some((item) => item.stockCode === code)).length;
   const allVisibleSelected = deletableItems.length > 0 && selectedCount === deletableItems.length;
   const someVisibleSelected = selectedCount > 0 && !allVisibleSelected;
@@ -94,7 +104,19 @@ export const StockBar: React.FC<StockBarProps> = ({
                   已选 {selectedCount}
                 </Badge>
               ) : items.length > 0 ? (
-                <span className="text-[11px] text-muted-text">{items.length}只</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] text-muted-text mr-1">{items.length}只</span>
+                  <button
+                    type="button"
+                    onClick={() => setSortBy('time')}
+                    className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${sortBy === 'time' ? 'bg-primary/15 text-primary font-medium' : 'text-muted-text hover:text-secondary-text'}`}
+                  >时间</button>
+                  <button
+                    type="button"
+                    onClick={() => setSortBy('score')}
+                    className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${sortBy === 'score' ? 'bg-primary/15 text-primary font-medium' : 'text-muted-text hover:text-secondary-text'}`}
+                  >评分</button>
+                </div>
               ) : undefined
             }
           />
@@ -149,7 +171,7 @@ export const StockBar: React.FC<StockBarProps> = ({
           />
         ) : (
           <div className="space-y-1.5">
-            {items.map((item) => {
+            {sortedItems.map((item) => {
               const code = item.stockCode || '';
               const isMarket = isMarketReview(code);
               const isSelected = selectedRecordId === item.id || selectedStockCode === code;

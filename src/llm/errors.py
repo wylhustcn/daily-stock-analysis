@@ -103,6 +103,14 @@ def classify_litellm_generation_param_error(
                 reason="temperature_unsupported",
             )
 
+    if "max_tokens" in text and "max_completion_tokens" in text:
+        if any(marker in text for marker in _UNSUPPORTED_PARAM_MARKERS):
+            return GenerationParamRecovery(
+                omit_params=("max_tokens",),
+                rename_params={"max_tokens": "max_completion_tokens"},
+                reason="max_tokens_to_max_completion_tokens",
+            )
+
     for param in ("top_p", "presence_penalty", "frequency_penalty", "seed"):
         if param in text and any(marker in text for marker in _UNSUPPORTED_PARAM_MARKERS):
             return GenerationParamRecovery(
@@ -121,31 +129,36 @@ def call_litellm_with_param_recovery(
     cache_recovery: bool = True,
     logger: Optional[Any] = None,
     log_label: str = "[LiteLLM]",
+    _max_retries: int = 3,
 ) -> Any:
-    """Call LiteLLM once, then retry once for explicit generation-parameter errors."""
-    effective_kwargs = dict(call_kwargs)
-    try:
-        return call(effective_kwargs)
-    except Exception as exc:
-        recovery = classify_litellm_generation_param_error(exc)
-        if recovery is None:
-            raise
-        retry_kwargs = apply_litellm_param_recovery(effective_kwargs, recovery)
-        if retry_kwargs == effective_kwargs:
-            raise
-        if logger is not None:
-            logger.warning(
-                "%s %s generation parameter rejected (%s), retrying once with request-scoped recovery",
-                log_label,
-                model,
-                recovery.reason,
-            )
-        response = call(retry_kwargs)
-        if cache_recovery:
-            remember_litellm_generation_param_recovery(
-                model,
-                recovery,
-                model_list=model_list,
-                request_overrides=retry_kwargs,
-            )
-        return response
+    """Call LiteLLM, retrying up to *_max_retries* times for classifiable param errors."""
+    current_kwargs = dict(call_kwargs)
+    all_recoveries: List[GenerationParamRecovery] = []
+    for _attempt in range(_max_retries + 1):
+        try:
+            response = call(current_kwargs)
+            for rec in all_recoveries:
+                if cache_recovery:
+                    remember_litellm_generation_param_recovery(
+                        model,
+                        rec,
+                        model_list=model_list,
+                        request_overrides=current_kwargs,
+                    )
+            return response
+        except Exception as exc:
+            recovery = classify_litellm_generation_param_error(exc)
+            if recovery is None or _attempt >= _max_retries:
+                raise
+            retry_kwargs = apply_litellm_param_recovery(current_kwargs, recovery)
+            if retry_kwargs == current_kwargs:
+                raise
+            if logger is not None:
+                logger.warning(
+                    "%s %s generation parameter rejected (%s), retrying with request-scoped recovery",
+                    log_label,
+                    model,
+                    recovery.reason,
+                )
+            all_recoveries.append(recovery)
+            current_kwargs = retry_kwargs
