@@ -237,12 +237,45 @@ def _build_dividend_payload(
     }
 
 
+def _unpivot_financial_abstract(df: pd.DataFrame) -> Optional[pd.Series]:
+    """Convert stock_financial_abstract pivoted format to a metric-keyed Series.
+
+    stock_financial_abstract returns rows=indicators, cols=['选项','指标', date...].
+    This function pivots the latest date column into a Series keyed by indicator name,
+    so downstream _pick_by_keywords can find metrics by name as expected.
+    The API sometimes returns duplicate indicator names; we keep the first occurrence.
+    """
+    if "指标" not in df.columns:
+        return None
+    date_cols = sorted(
+        [c for c in df.columns if str(c).isdigit() and len(str(c)) == 8],
+        reverse=True,
+    )
+    if not date_cols:
+        return None
+    latest = date_cols[0]
+    report_date_str = f"{latest[:4]}-{latest[4:6]}-{latest[6:8]}"
+    try:
+        # drop_duplicates on 指标 to avoid Series-returning .get() on duplicate index
+        deduped = df.drop_duplicates(subset=["指标"], keep="first")
+        series = deduped.set_index("指标")[latest]
+        result = series.copy()
+        result["报告期"] = report_date_str
+        return result
+    except Exception:
+        return None
+
+
 def _extract_latest_row(df: pd.DataFrame, stock_code: str) -> Optional[pd.Series]:
     """
     Select the most relevant row for the given stock.
     """
     if df is None or df.empty:
         return None
+
+    # Handle stock_financial_abstract pivoted format (rows=indicators, cols=dates)
+    if "指标" in df.columns:
+        return _unpivot_financial_abstract(df)
 
     code_cols = [c for c in df.columns if any(k in str(c) for k in ("代码", "股票代码", "证券代码", "ts_code", "symbol"))]
     target = _normalize_code(stock_code)
