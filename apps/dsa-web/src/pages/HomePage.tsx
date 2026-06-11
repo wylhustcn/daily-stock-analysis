@@ -104,6 +104,7 @@ const HomePage: React.FC = () => {
     closeHistoryTrend,
     setStockHistoryRange,
     loadMoreStockHistory,
+    deleteStockHistoryRecord,
     stockBarItems,
     isLoadingStockBar,
     loadStockBar,
@@ -879,11 +880,14 @@ const HomePage: React.FC = () => {
                     onLoadMore={() => void loadMoreStockHistory()}
                     onSelectRecord={(recordId) => void selectHistoryItem(recordId)}
                     onRetry={() => void openHistoryTrend()}
+                    onDeleteRecord={deleteStockHistoryRecord}
                   />
                 ) : (
                   <ReportSummary
                     data={selectedReport}
                     isHistory
+                    stockHistoryItems={stockHistoryItems}
+                    isLoadingStockHistory={isLoadingStockHistory}
                     watchlist={{
                       isInWatchlist: watchlistState.isInWatchlist,
                       onToggle: watchlistState.toggleWatchlist,

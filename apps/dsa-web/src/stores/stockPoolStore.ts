@@ -90,6 +90,8 @@ export interface StockPoolState {
   refreshActiveTasks: () => Promise<void>;
   removeTask: (taskId: string) => void;
   resetDashboardState: () => void;
+  deleteStockHistoryRecord: (recordId: number) => Promise<void>;
+  fetchStockHistoryForChart: () => Promise<void>;
   loadStockBar: () => Promise<void>;
   refreshStockBar: () => Promise<void>;
 }
@@ -471,6 +473,8 @@ export const useStockPoolStore = create<StockPoolState>((set, get) => ({
 
       if (get().isHistoryTrendOpen) {
         await fetchStockHistory(get, set, { reset: true });
+      } else {
+        fetchStockHistory(get, set, { reset: true }).catch(() => {});
       }
     } catch (error) {
       if (requestId !== reportRequestSeq) {
@@ -718,6 +722,28 @@ export const useStockPoolStore = create<StockPoolState>((set, get) => ({
     activeTaskLocalRevision += 1;
     dismissedTaskIds.clear();
     set({ ...initialState });
+  },
+
+  deleteStockHistoryRecord: async (recordId) => {
+    try {
+      await historyApi.deleteRecords([recordId]);
+      const state = get();
+      const nextItems = state.stockHistoryItems.filter((item) => item.id !== recordId);
+      set({
+        stockHistoryItems: nextItems,
+        stockHistoryTotal: Math.max(0, state.stockHistoryTotal - 1),
+      });
+    } catch (error) {
+      set({ stockHistoryError: getParsedApiError(error) });
+    }
+  },
+
+  fetchStockHistoryForChart: async () => {
+    const report = get().selectedReport;
+    if (!report || report.meta.reportType === 'market_review' || !report.meta.stockCode) {
+      return;
+    }
+    await fetchStockHistory(get, set, { reset: true });
   },
 
   loadStockBar: async () => {

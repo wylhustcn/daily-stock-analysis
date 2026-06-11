@@ -1,7 +1,8 @@
 import React from 'react';
-import type { AnalysisResult, AnalysisReport } from '../../types/analysis';
+import type { AnalysisResult, AnalysisReport, HistoryItem } from '../../types/analysis';
 import { ReportOverview } from './ReportOverview';
 import { ReportStrategy } from './ReportStrategy';
+import { ReportTrendChart } from './ReportTrendChart';
 import { ReportNews } from './ReportNews';
 import { ReportDetails } from './ReportDetails';
 import { ReportDiagnostics } from './ReportDiagnostics';
@@ -11,6 +12,8 @@ import { getReportText, normalizeReportLanguage } from '../../utils/reportLangua
 interface ReportSummaryProps {
   data: AnalysisResult | AnalysisReport;
   isHistory?: boolean;
+  stockHistoryItems?: HistoryItem[];
+  isLoadingStockHistory?: boolean;
   /** 自选相关 */
   watchlist?: {
     isInWatchlist: (code: string) => boolean;
@@ -27,6 +30,8 @@ interface ReportSummaryProps {
 export const ReportSummary: React.FC<ReportSummaryProps> = ({
   data,
   isHistory = false,
+  stockHistoryItems,
+  isLoadingStockHistory,
   watchlist,
 }) => {
   // 兼容 AnalysisResult 和 AnalysisReport 两种数据格式
@@ -53,6 +58,11 @@ export const ReportSummary: React.FC<ReportSummaryProps> = ({
         isHistory={isHistory}
         watchlist={watchlist}
       />
+
+      {/* 趋势图 */}
+      {stockHistoryItems && stockHistoryItems.length > 1 && (
+        <ReportTrendChart items={stockHistoryItems} isLoading={isLoadingStockHistory} />
+      )}
 
       {/* 策略点位区 */}
       <ReportStrategy strategy={strategy} language={reportLanguage} />

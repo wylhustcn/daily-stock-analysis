@@ -55,6 +55,7 @@ export function useHomeDashboardState() {
       closeHistoryTrend: state.closeHistoryTrend,
       setStockHistoryRange: state.setStockHistoryRange,
       loadMoreStockHistory: state.loadMoreStockHistory,
+      deleteStockHistoryRecord: state.deleteStockHistoryRecord,
       stockBarItems: state.stockBarItems,
       isLoadingStockBar: state.isLoadingStockBar,
       loadStockBar: state.loadStockBar,

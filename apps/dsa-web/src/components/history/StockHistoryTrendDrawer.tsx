@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AnalysisReport, HistoryItem, StockHistoryFilters, StockHistoryRange } from '../../types/analysis';
 import { getSentimentColor } from '../../types/analysis';
 import { formatDateTime } from '../../utils/format';
@@ -20,6 +20,7 @@ interface StockHistoryTrendDrawerProps {
   onLoadMore: () => void;
   onSelectRecord: (recordId: number) => void;
   onRetry: () => void;
+  onDeleteRecord?: (recordId: number) => Promise<void>;
 }
 
 const RANGE_OPTIONS: Array<{ value: StockHistoryRange; label: string }> = [
@@ -171,9 +172,11 @@ export const StockHistoryTrendDrawer: React.FC<StockHistoryTrendDrawerProps> = (
   onLoadMore,
   onSelectRecord,
   onRetry,
+  onDeleteRecord,
 }) => {
   const currentRecordId = report.meta.id;
   const [selectedRecordId, setSelectedRecordId] = useState(currentRecordId);
+  const [deletingRecordId, setDeletingRecordId] = useState<number | null>(null);
   const summary = useMemo(
     () => summarizeView(items, report, currentRecordId),
     [currentRecordId, items, report],
@@ -182,6 +185,16 @@ export const StockHistoryTrendDrawer: React.FC<StockHistoryTrendDrawerProps> = (
   useEffect(() => {
     setSelectedRecordId(currentRecordId);
   }, [currentRecordId]);
+
+  const handleDeleteRecord = useCallback(async (recordId: number) => {
+    if (!onDeleteRecord || deletingRecordId !== null) return;
+    setDeletingRecordId(recordId);
+    try {
+      await onDeleteRecord(recordId);
+    } finally {
+      setDeletingRecordId(null);
+    }
+  }, [onDeleteRecord, deletingRecordId]);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -350,17 +363,32 @@ export const StockHistoryTrendDrawer: React.FC<StockHistoryTrendDrawerProps> = (
                           {formatModelName(item.modelUsed)}
                         </td>
                         <td className="px-3 py-3">
-                          <button
-                            type="button"
-                            className="rounded-lg border border-primary/35 bg-primary/8 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/14"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onSelectRecord(item.id);
-                              onClose();
-                            }}
-                          >
-                            查看报告
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              className="rounded-lg border border-primary/35 bg-primary/8 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/14"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onSelectRecord(item.id);
+                                onClose();
+                              }}
+                            >
+                              查看报告
+                            </button>
+                            {onDeleteRecord && (
+                              <button
+                                type="button"
+                                className="rounded-lg border border-red-500/25 bg-red-500/6 px-2 py-1 text-xs font-medium text-red-500 transition-colors hover:bg-red-500/14 disabled:opacity-40"
+                                disabled={deletingRecordId !== null}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleDeleteRecord(item.id);
+                                }}
+                              >
+                                {deletingRecordId === item.id ? '...' : '删除'}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );

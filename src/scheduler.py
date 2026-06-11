@@ -72,7 +72,7 @@ class Scheduler:
         初始化调度器
 
         Args:
-            schedule_time: 每日执行时间，格式 "HH:MM"
+            schedule_time: 每日执行时间，格式 "HH:MM"，多个时间用逗号分隔
         """
         try:
             import schedule
@@ -85,7 +85,7 @@ class Scheduler:
         self._schedule_time_provider = schedule_time_provider
         self.shutdown_handler = GracefulShutdown()
         self._task_callback: Optional[Callable] = None
-        self._daily_job: Optional[Any] = None
+        self._daily_jobs: List[Any] = []
         self._background_tasks: List[Dict[str, Any]] = []
         self._running = False
 
@@ -113,24 +113,48 @@ class Scheduler:
             return False
         return True
 
-    def _cancel_daily_job(self) -> None:
-        """Remove the currently registered daily job if one exists."""
-        if self._daily_job is None:
-            return
+    @staticmethod
+    def _parse_schedule_times(schedule_time: str) -> List[str]:
+        """Parse comma-separated schedule times into individual HH:MM values."""
+        return [
+            t.strip() for t in (schedule_time or "").split(",")
+            if t.strip()
+        ]
 
-        if hasattr(self.schedule, "cancel_job"):
-            self.schedule.cancel_job(self._daily_job)
-        else:  # pragma: no cover - compatibility fallback
-            jobs = getattr(self.schedule, "jobs", None)
-            if isinstance(jobs, list) and self._daily_job in jobs:
-                jobs.remove(self._daily_job)
-
-        self._daily_job = None
+    def _cancel_daily_jobs(self) -> None:
+        """Remove all currently registered daily jobs."""
+        for job in self._daily_jobs:
+            if hasattr(self.schedule, "cancel_job"):
+                self.schedule.cancel_job(job)
+            else:  # pragma: no cover - compatibility fallback
+                jobs = getattr(self.schedule, "jobs", None)
+                if isinstance(jobs, list) and job in jobs:
+                    jobs.remove(job)
+        self._daily_jobs = []
 
     def _configure_daily_task(self, schedule_time: str) -> bool:
-        """(Re)register the daily job at the requested time."""
-        candidate = (schedule_time or "").strip()
-        if not self._is_valid_schedule_time(candidate):
+        """(Re)register daily jobs at the requested time(s).
+
+        Accepts a single ``"HH:MM"`` or comma-separated ``"HH:MM,HH:MM,..."``
+        string.
+        """
+        candidates = self._parse_schedule_times(schedule_time)
+        if not candidates:
+            logger.warning(
+                "检测到无效的定时执行时间 %r，继续沿用当前时间 %s",
+                schedule_time,
+                self.schedule_time,
+            )
+            return False
+
+        valid_times: List[str] = []
+        for t in candidates:
+            if self._is_valid_schedule_time(t):
+                valid_times.append(t)
+            else:
+                logger.warning("忽略无效的定时执行时间: %r", t)
+
+        if not valid_times:
             logger.warning(
                 "检测到无效的定时执行时间 %r，继续沿用当前时间 %s",
                 schedule_time,
@@ -139,11 +163,16 @@ class Scheduler:
             return False
 
         previous_time = self.schedule_time
-        self._cancel_daily_job()
-        self._daily_job = self.schedule.every().day.at(candidate).do(self._safe_run_task)
-        self.schedule_time = candidate
+        self._cancel_daily_jobs()
 
-        if previous_time == candidate:
+        for t in valid_times:
+            job = self.schedule.every().day.at(t).do(self._safe_run_task)
+            self._daily_jobs.append(job)
+
+        new_schedule_time = ",".join(valid_times)
+        self.schedule_time = new_schedule_time
+
+        if previous_time == new_schedule_time:
             logger.info("已设置每日定时任务，执行时间: %s", self.schedule_time)
         else:
             logger.info(
