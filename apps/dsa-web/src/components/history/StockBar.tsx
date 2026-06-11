@@ -32,7 +32,7 @@ export const StockBar: React.FC<StockBarProps> = ({
 }) => {
   const isMarketReview = (code: string) => code === 'MARKET';
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<'time' | 'score'>('time');
+  const [sortBy, setSortBy] = useState<'time' | 'score'>('score');
   const selectAllRef = useRef<HTMLInputElement>(null);
   const selectAllId = useId();
 
