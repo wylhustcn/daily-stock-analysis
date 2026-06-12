@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [新功能] 历史趋势表格每条分析记录支持单条删除，操作列新增"删除"按钮。
 - [新功能] 报告详情页策略位点上方新增趋势图，展示历史评分、股价、涨跌幅三项指标走势（recharts ComposedChart），选中报告后自动静默加载同股历史数据。
 - [修复] 基本面适配器正确解析 `stock_financial_abstract` 的行列转置格式，修复营业收入、归母净利润、ROE、毛利率、经营现金流等字段在转置表中因重复指标名导致全部返回 None 的问题。
+- [改进] 报告详情趋势图移除股价折线，仅保留评分与涨跌幅双轴展示，改善暗色主题可读性。
 - [改进] 个股栏支持按情绪得分（sentimentScore）降序排列，点击"评分"按钮切换，默认保持按时间排序，大盘复盘始终置顶。
 - [改进] 首次运行配置校验补充缺失 AI Key、空 STOCK_LIST、Telegram/邮件成对字段和 Webhook URL 前缀诊断。
 - [改进] AlphaSift 选股入口在 Web 侧边栏中移动到“问股”下方，贴近 Agent/研究辅助工作流。
