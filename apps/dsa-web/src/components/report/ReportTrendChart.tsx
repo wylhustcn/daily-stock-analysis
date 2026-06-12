@@ -25,7 +25,6 @@ interface ChartDataPoint {
   date: string;
   fullDate: string;
   score: number | null;
-  price: number | null;
   change: number | null;
 }
 
@@ -53,19 +52,17 @@ const CustomTooltip: React.FC<{
   const dataPoint = payload[0]?.payload;
 
   return (
-    <div className="rounded-lg border border-border/70 bg-card/95 px-3 py-2.5 shadow-lg backdrop-blur-sm">
-      <p className="mb-1.5 text-xs font-medium text-foreground">
+    <div className="rounded-lg border border-border/70 bg-card px-3.5 py-3 shadow-xl backdrop-blur-sm">
+      <p className="mb-2 text-sm font-medium text-foreground">
         {dataPoint?.fullDate ?? label}
       </p>
       {payload.map((entry) => (
-        <p key={entry.name} className="text-xs" style={{ color: entry.color }}>
+        <p key={entry.name} className="text-sm leading-relaxed" style={{ color: entry.color }}>
           <span className="text-secondary-text">{entry.name}: </span>
           <span className="font-mono font-semibold">
             {entry.name === '涨跌幅'
               ? `${entry.value > 0 ? '+' : ''}${entry.value.toFixed(2)}%`
-              : entry.name === '评分'
-                ? entry.value.toFixed(0)
-                : entry.value.toFixed(2)}
+              : entry.value.toFixed(0)}
           </span>
         </p>
       ))}
@@ -84,63 +81,67 @@ export const ReportTrendChart: React.FC<ReportTrendChartProps> = ({ items, isLoa
       date: formatDateShort(item.createdAt),
       fullDate: formatDateFull(item.createdAt),
       score: typeof item.sentimentScore === 'number' ? item.sentimentScore : null,
-      price: typeof item.currentPrice === 'number' ? item.currentPrice : null,
       change: typeof item.changePct === 'number' ? item.changePct : null,
     }));
   }, [items]);
 
   if (isLoading || chartData.length < 2) return null;
 
-  const priceValues = chartData.map((d) => d.price).filter((v): v is number => v !== null);
-  const priceMin = priceValues.length ? Math.floor(Math.min(...priceValues) * 0.97) : 0;
-  const priceMax = priceValues.length ? Math.ceil(Math.max(...priceValues) * 1.03) : 100;
+  const changeValues = chartData.map((d) => d.change).filter((v): v is number => v !== null);
+  const absMax = changeValues.length
+    ? Math.ceil(Math.max(...changeValues.map(Math.abs)) * 1.2)
+    : 5;
+  const changeMax = Math.max(absMax, 1);
 
   return (
     <Card variant="bordered" padding="md" className="home-panel-card">
       <DashboardPanelHeader
         eyebrow="历史趋势"
-        title="评分 · 股价 · 涨跌幅"
+        title="评分 · 涨跌幅"
         className="mb-3"
       />
       <div className="h-[260px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: -8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border, #333)" opacity={0.4} />
+          <ComposedChart data={chartData} margin={{ top: 8, right: 12, bottom: 4, left: -4 }}>
+            <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border, #444)" opacity={0.55} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 11, fill: 'var(--text-secondary-text, #999)' }}
+              tick={{ fontSize: 12, fill: 'var(--text-secondary-text, #aaa)' }}
               tickLine={false}
               axisLine={false}
             />
             <YAxis
               yAxisId="left"
               domain={[0, 100]}
-              tick={{ fontSize: 11, fill: 'var(--text-secondary-text, #999)' }}
+              tick={{ fontSize: 12, fill: 'var(--text-secondary-text, #aaa)' }}
               tickLine={false}
               axisLine={false}
               width={32}
+              label={{ value: '评分', position: 'insideTopLeft', offset: -4, style: { fontSize: 11, fill: 'var(--text-muted-text, #888)' } }}
             />
             <YAxis
               yAxisId="right"
               orientation="right"
-              domain={[priceMin, priceMax]}
-              tick={{ fontSize: 11, fill: 'var(--text-secondary-text, #999)' }}
+              domain={[-changeMax, changeMax]}
+              tick={{ fontSize: 12, fill: 'var(--text-secondary-text, #aaa)' }}
+              tickFormatter={(v: number) => `${v}%`}
               tickLine={false}
               axisLine={false}
               width={48}
+              label={{ value: '涨跌幅', position: 'insideTopRight', offset: -4, style: { fontSize: 11, fill: 'var(--text-muted-text, #888)' } }}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend
-              iconSize={10}
-              wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
+              iconSize={12}
+              wrapperStyle={{ fontSize: 12, paddingTop: 6 }}
             />
             <Bar
-              yAxisId="left"
+              yAxisId="right"
               dataKey="change"
               name="涨跌幅"
-              barSize={14}
-              radius={[2, 2, 0, 0]}
-              opacity={0.7}
+              barSize={18}
+              radius={[3, 3, 0, 0]}
+              opacity={0.85}
             >
               {chartData.map((entry, index) => (
                 <Cell
@@ -158,21 +159,10 @@ export const ReportTrendChart: React.FC<ReportTrendChartProps> = ({ items, isLoa
               type="monotone"
               dataKey="score"
               name="评分"
-              stroke="var(--color-primary, #06b6d4)"
-              strokeWidth={2}
-              dot={{ r: 3, fill: 'var(--color-primary, #06b6d4)' }}
-              activeDot={{ r: 5 }}
-              connectNulls
-            />
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="price"
-              name="股价"
-              stroke="var(--color-warning, #f59e0b)"
-              strokeWidth={2}
-              dot={{ r: 3, fill: 'var(--color-warning, #f59e0b)' }}
-              activeDot={{ r: 5 }}
+              stroke="hsl(var(--primary, 193 100% 43%))"
+              strokeWidth={2.5}
+              dot={{ r: 4, fill: 'hsl(var(--primary, 193 100% 43%))', strokeWidth: 0 }}
+              activeDot={{ r: 6, strokeWidth: 2, stroke: 'hsl(var(--primary, 193 100% 43%))' }}
               connectNulls
             />
           </ComposedChart>
