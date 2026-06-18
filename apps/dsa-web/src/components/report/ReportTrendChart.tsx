@@ -142,6 +142,24 @@ export const ReportTrendChart: React.FC<ReportTrendChartProps> = ({ items, isLoa
               barSize={18}
               radius={[3, 3, 0, 0]}
               opacity={0.85}
+              label={(props: any) => {
+                const x = Number(props.x ?? 0);
+                const y = Number(props.y ?? 0);
+                const width = Number(props.width ?? 0);
+                const value = props.value as number | null;
+                if (value === null || value === undefined) return null;
+                return (
+                  <text
+                    x={x + width / 2}
+                    y={value >= 0 ? y - 4 : y + 14}
+                    textAnchor="middle"
+                    fontSize={10}
+                    fill={value >= 0 ? 'var(--home-price-up, #ef4444)' : 'var(--home-price-down, #22c55e)'}
+                  >
+                    {`${value > 0 ? '+' : ''}${value.toFixed(1)}%`}
+                  </text>
+                );
+              }}
             >
               {chartData.map((entry, index) => (
                 <Cell
@@ -164,6 +182,24 @@ export const ReportTrendChart: React.FC<ReportTrendChartProps> = ({ items, isLoa
               dot={{ r: 4, fill: 'hsl(var(--primary, 193 100% 43%))', strokeWidth: 0 }}
               activeDot={{ r: 6, strokeWidth: 2, stroke: 'hsl(var(--primary, 193 100% 43%))' }}
               connectNulls
+              label={(props: any) => {
+                const x = Number(props.x ?? 0);
+                const y = Number(props.y ?? 0);
+                const value = props.value as number | null;
+                if (value === null || value === undefined) return null;
+                return (
+                  <text
+                    x={x}
+                    y={y - 10}
+                    textAnchor="middle"
+                    fontSize={11}
+                    fontWeight={600}
+                    fill="hsl(var(--primary, 193 100% 43%))"
+                  >
+                    {Math.round(value)}
+                  </text>
+                );
+              }}
             />
           </ComposedChart>
         </ResponsiveContainer>
