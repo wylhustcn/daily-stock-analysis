@@ -1647,9 +1647,49 @@ class AkshareFetcher(BaseFetcher):
             return chip
             
         except Exception as e:
-            logger.error(f"[API错误] 获取 {stock_code} 筹码分布失败: {e}")
+            logger.warning(f"[API警告] stock_cyq_em 获取 {stock_code} 筹码分布失败: {e}，尝试本地计算...")
+            return self._compute_chip_fallback(stock_code)
+
+    def _compute_chip_fallback(self, stock_code: str) -> Optional[ChipDistribution]:
+        """Fallback: fetch K-line via Sina and compute chip distribution locally."""
+        import akshare as ak
+        from datetime import datetime, timedelta
+        from .chip_calculator import compute_chip_distribution
+
+        end_date = datetime.now().strftime('%Y%m%d')
+        start_date = (datetime.now() - timedelta(days=250)).strftime('%Y%m%d')
+        symbol = _to_sina_tx_symbol(stock_code)
+
+        try:
+            df = ak.stock_zh_a_daily(
+                symbol=symbol,
+                start_date=start_date,
+                end_date=end_date,
+                adjust="qfq",
+            )
+            if df is None or df.empty or len(df) < 30:
+                logger.warning("[筹码计算] %s K 线数据不足，无法计算筹码分布", stock_code)
+                return None
+
+            kline_data = []
+            for _, row in df.iterrows():
+                tr = float(row.get('turnover', 0) or 0)
+                kline_data.append({
+                    'date': str(row.get('date', '')),
+                    'open': float(row.get('open', 0)),
+                    'close': float(row.get('close', 0)),
+                    'high': float(row.get('high', 0)),
+                    'low': float(row.get('low', 0)),
+                    'turnover_rate': tr,
+                })
+
+            current_price = kline_data[-1]['close'] if kline_data else 0
+            return compute_chip_distribution(kline_data, current_price, stock_code)
+
+        except Exception as e:
+            logger.warning("[筹码计算] %s 本地计算筹码分布失败: %s", stock_code, e)
             return None
-    
+
     def get_enhanced_data(self, stock_code: str, days: int = 60) -> Dict[str, Any]:
         """
         获取增强数据（历史K线 + 实时行情 + 筹码分布）
