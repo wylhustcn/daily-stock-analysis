@@ -58,7 +58,7 @@ class Scheduler:
     定时任务调度器
 
     基于 schedule 库实现，支持：
-    - 每日定时执行
+    - 每日定时执行（默认仅工作日）
     - 启动时立即执行
     - 优雅退出
     """
@@ -67,6 +67,7 @@ class Scheduler:
         self,
         schedule_time: str = "18:00",
         schedule_time_provider: Optional[Callable[[], str]] = None,
+        weekdays_only: bool = True,
     ):
         """
         初始化调度器
@@ -83,6 +84,7 @@ class Scheduler:
 
         self.schedule_time = schedule_time
         self._schedule_time_provider = schedule_time_provider
+        self._weekdays_only = weekdays_only
         self.shutdown_handler = GracefulShutdown()
         self._task_callback: Optional[Callable] = None
         self._daily_jobs: List[Any] = []
@@ -200,8 +202,12 @@ class Scheduler:
             logger.info("更新后的下次执行时间: %s", self._get_next_run_time())
 
     def _safe_run_task(self):
-        """安全执行任务（带异常捕获）"""
+        """安全执行任务（带异常捕获），周末自动跳过"""
         if self._task_callback is None:
+            return
+
+        if self._weekdays_only and datetime.now().weekday() >= 5:
+            logger.info("今日为周末，跳过定时分析任务。")
             return
 
         try:
@@ -340,6 +346,7 @@ def run_with_schedule(
     run_immediately: bool = True,
     background_tasks: Optional[List[Dict[str, Any]]] = None,
     schedule_time_provider: Optional[Callable[[], str]] = None,
+    weekdays_only: bool = True,
 ):
     """
     便捷函数：使用定时调度运行任务
@@ -353,10 +360,12 @@ def run_with_schedule(
             和 `run_immediately`。`interval_seconds` 单位为秒。
         schedule_time_provider: 可选的时间提供器；调度器每轮检查前会读取，
             当返回值变化时自动重建 daily job。
+        weekdays_only: 仅工作日执行定时任务，默认 True
     """
     scheduler = Scheduler(
         schedule_time=schedule_time,
         schedule_time_provider=schedule_time_provider,
+        weekdays_only=weekdays_only,
     )
     for entry in background_tasks or []:
         scheduler.add_background_task(
