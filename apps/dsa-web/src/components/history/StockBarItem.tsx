@@ -12,6 +12,8 @@ interface StockBarItemProps {
   onDelete?: (stockCode: string) => void;
   isDeleting?: boolean;
   isMarketReview?: boolean;
+  isFavorite?: boolean;
+  onToggleFavorite?: (stockCode: string) => void;
 }
 
 const getOperationBadgeLabel = (advice?: string) => {
@@ -31,6 +33,8 @@ export const StockBarItemComponent: React.FC<StockBarItemProps> = ({
   onDelete,
   isDeleting = false,
   isMarketReview = false,
+  isFavorite = false,
+  onToggleFavorite,
 }) => {
   const sentimentColor = item.sentimentScore !== undefined ? getSentimentColor(item.sentimentScore) : null;
   const stockName = item.stockName || item.stockCode;
@@ -43,7 +47,7 @@ export const StockBarItemComponent: React.FC<StockBarItemProps> = ({
       onClick={() => onClick(item.id)}
       className={`home-history-item w-full text-left p-2.5 group/item ${
         isViewing ? 'home-history-item-selected' : ''
-      }`}
+      } ${isFavorite && !isMarketReview ? 'ring-1 ring-amber-400/20 bg-amber-400/5' : ''}`}
     >
       <div className={`flex items-center gap-2.5 relative z-10${isTruncated ? ' group-hover/item:z-20' : ''}`}>
         {isMarketReview ? (
@@ -52,12 +56,31 @@ export const StockBarItemComponent: React.FC<StockBarItemProps> = ({
           <div
             className="w-1 h-8 rounded-full flex-shrink-0"
             style={{
-              backgroundColor: sentimentColor,
-              boxShadow: `0 0 10px ${sentimentColor}40`,
+              backgroundColor: isFavorite ? '#fbbf24' : sentimentColor,
+              boxShadow: `0 0 10px ${isFavorite ? 'rgba(251,191,36,0.4)' : `${sentimentColor}40`}`,
             }}
           />
         ) : (
-          <div className="w-1 h-8 rounded-full flex-shrink-0 bg-subtle" />
+          <div className={`w-1 h-8 rounded-full flex-shrink-0 ${isFavorite ? 'bg-amber-400' : 'bg-subtle'}`} style={isFavorite ? { boxShadow: '0 0 10px rgba(251,191,36,0.4)' } : undefined} />
+        )}
+        {!isMarketReview && onToggleFavorite && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(item.stockCode);
+            }}
+            className={`flex-shrink-0 transition-opacity ${
+              isFavorite
+                ? 'text-amber-400 opacity-100'
+                : 'text-muted-text opacity-0 group-hover/item:opacity-60 hover:!opacity-100'
+            }`}
+            aria-label={isFavorite ? `取消收藏 ${stockName}` : `收藏 ${stockName}`}
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+          </button>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">

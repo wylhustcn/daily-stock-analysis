@@ -16,6 +16,22 @@ interface StockBarProps {
   className?: string;
 }
 
+const FAVORITES_STORAGE_KEY = 'dsa-stock-favorites';
+
+const loadFavorites = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(FAVORITES_STORAGE_KEY);
+    if (raw) return new Set(JSON.parse(raw) as string[]);
+  } catch { /* ignore */ }
+  return new Set();
+};
+
+const saveFavorites = (favorites: Set<string>) => {
+  try {
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify([...favorites]));
+  } catch { /* ignore */ }
+};
+
 /**
  * 个股栏组件：以股票维度展示历史分析记录，每只股票只显示一条，
  * 大盘复盘置顶，其余按最新分析时间排列。支持全选、批量删除。
@@ -33,17 +49,34 @@ export const StockBar: React.FC<StockBarProps> = ({
   const isMarketReview = (code: string) => code === 'MARKET';
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'time' | 'score'>('score');
+  const [favorites, setFavorites] = useState<Set<string>>(loadFavorites);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const selectAllRef = useRef<HTMLInputElement>(null);
   const selectAllId = useId();
 
+  const toggleFavorite = useCallback((code: string) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      saveFavorites(next);
+      return next;
+    });
+  }, []);
+
   const sortedItems = useMemo(() => {
     const market = items.filter((i) => isMarketReview(i.stockCode));
-    const rest = items.filter((i) => !isMarketReview(i.stockCode));
+    let rest = items.filter((i) => !isMarketReview(i.stockCode));
+    if (showFavoritesOnly) {
+      rest = rest.filter((i) => favorites.has(i.stockCode));
+    }
     if (sortBy === 'score') {
       rest.sort((a, b) => (b.sentimentScore ?? -1) - (a.sentimentScore ?? -1));
     }
-    return [...market, ...rest];
-  }, [items, sortBy]);
+    const favItems = rest.filter((i) => favorites.has(i.stockCode));
+    const nonFavItems = rest.filter((i) => !favorites.has(i.stockCode));
+    return [...market, ...favItems, ...nonFavItems];
+  }, [items, sortBy, favorites, showFavoritesOnly]);
 
   const deletableItems = sortedItems.filter((item) => !isMarketReview(item.stockCode));
   const selectedCount = [...selectedCodes].filter((code) => deletableItems.some((item) => item.stockCode === code)).length;
@@ -106,6 +139,16 @@ export const StockBar: React.FC<StockBarProps> = ({
               ) : items.length > 0 ? (
                 <div className="flex items-center gap-1">
                   <span className="text-[11px] text-muted-text mr-1">{items.length}只</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                    className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${showFavoritesOnly ? 'bg-amber-400/15 text-amber-400 font-medium' : 'text-muted-text hover:text-secondary-text'}`}
+                    aria-label={showFavoritesOnly ? '显示全部' : '只看收藏'}
+                  >
+                    <svg className="inline h-3 w-3 -mt-px" viewBox="0 0 24 24" fill={showFavoritesOnly ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setSortBy('time')}
@@ -197,6 +240,8 @@ export const StockBar: React.FC<StockBarProps> = ({
                     onDelete={isMarket ? undefined : onDeleteStock}
                     isDeleting={isDeleting}
                     isMarketReview={isMarket}
+                    isFavorite={favorites.has(code)}
+                    onToggleFavorite={isMarket ? undefined : toggleFavorite}
                   />
                 </div>
               );
