@@ -6,6 +6,7 @@ import { ReportTrendChart } from './ReportTrendChart';
 import { ReportNews } from './ReportNews';
 import { ReportDetails } from './ReportDetails';
 import { ReportDiagnostics } from './ReportDiagnostics';
+import { ReportChecklist } from './ReportChecklist';
 import { AnalysisContextSummary } from './AnalysisContextSummary';
 import { getReportText, normalizeReportLanguage } from '../../utils/reportLanguage';
 
@@ -58,6 +59,9 @@ export const ReportSummary: React.FC<ReportSummaryProps> = ({
         isHistory={isHistory}
         watchlist={watchlist}
       />
+
+      {/* 检查清单 */}
+      <ReportChecklist details={details} />
 
       {/* 趋势图 */}
       {stockHistoryItems && stockHistoryItems.length > 1 && (

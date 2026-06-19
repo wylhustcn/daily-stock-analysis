@@ -1,4 +1,5 @@
 export * from './ReportSummary';
+export * from './ReportChecklist';
 export * from './ReportDiagnostics';
 export * from './AnalysisContextSummary';
 export * from './ReportOverview';
