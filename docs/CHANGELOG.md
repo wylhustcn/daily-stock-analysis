@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- [改进] 个股分析增加超时机制（默认 300s），单股卡死不再阻塞整批任务，可通过 `PER_STOCK_TIMEOUT_SECONDS` 配置
 - [新功能] 历史趋势表格每条分析记录支持单条删除，操作列新增"删除"按钮。
 - [新功能] 报告详情页策略位点上方新增趋势图，展示历史评分、股价、涨跌幅三项指标走势（recharts ComposedChart），选中报告后自动静默加载同股历史数据。
 - [修复] 基本面适配器正确解析 `stock_financial_abstract` 的行列转置格式，修复营业收入、归母净利润、ROE、毛利率、经营现金流等字段在转置表中因重复指标名导致全部返回 None 的问题。

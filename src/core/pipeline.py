@@ -2265,7 +2265,8 @@ class StockAnalysisPipeline:
             )
         
         results: List[AnalysisResult] = []
-        
+        per_stock_timeout = getattr(self.config, 'per_stock_timeout_seconds', 300.0)
+
         # 使用线程池并发处理
         # 注意：max_workers 设置较低（默认3）以避免触发反爬
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
@@ -2287,7 +2288,7 @@ class StockAnalysisPipeline:
             for idx, future in enumerate(as_completed(future_to_code)):
                 code = future_to_code[future]
                 try:
-                    result = future.result()
+                    result = future.result(timeout=per_stock_timeout)
                     if result and result.success:
                         results.append(result)
                         if single_stock_notify and send_notification and not dry_run:
@@ -2304,13 +2305,17 @@ class StockAnalysisPipeline:
 
                     # Issue #128: 分析间隔 - 在个股分析和大盘分析之间添加延迟
                     if idx < len(stock_codes) - 1 and analysis_delay > 0:
-                        # 注意：此 sleep 发生在“主线程收集 future 的循环”中，
+                        # 注意：此 sleep 发生在"主线程收集 future 的循环"中，
                         # 并不会阻止线程池中的任务同时发起网络请求。
                         # 因此它对降低并发请求峰值的效果有限；真正的峰值主要由 max_workers 决定。
                         # 该行为目前保留（按需求不改逻辑）。
                         logger.debug(f"等待 {analysis_delay} 秒后继续下一只股票...")
                         time.sleep(analysis_delay)
 
+                except TimeoutError:
+                    logger.error(
+                        f"[{code}] 分析超时（>{per_stock_timeout:.0f}s），跳过该股票"
+                    )
                 except Exception as e:
                     logger.error(f"[{code}] 任务执行失败: {e}")
         

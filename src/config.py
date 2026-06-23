@@ -922,6 +922,8 @@ class Config:
     fundamental_stage_timeout_seconds: float = FUNDAMENTAL_STAGE_TIMEOUT_SECONDS_DEFAULT
     # 单能力源调用超时（秒）
     fundamental_fetch_timeout_seconds: float = 3.0
+    # 单只股票分析整体超时（秒），超时后跳过该股票继续分析其余个股
+    per_stock_timeout_seconds: float = 300.0
     # 单能力失败重试次数（已包含首次）
     fundamental_retry_max: int = 1
     # 基本面上下文短 TTL（秒）
@@ -1749,6 +1751,12 @@ class Config:
                 3.0,
                 field_name='FUNDAMENTAL_FETCH_TIMEOUT_SECONDS',
                 minimum=0.0,
+            ),
+            per_stock_timeout_seconds=parse_env_float(
+                os.getenv('PER_STOCK_TIMEOUT_SECONDS'),
+                300.0,
+                field_name='PER_STOCK_TIMEOUT_SECONDS',
+                minimum=30.0,
             ),
             fundamental_retry_max=parse_env_int(os.getenv('FUNDAMENTAL_RETRY_MAX'), 1, field_name='FUNDAMENTAL_RETRY_MAX', minimum=0),
             fundamental_cache_ttl_seconds=parse_env_int(
