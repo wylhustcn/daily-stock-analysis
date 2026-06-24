@@ -2285,39 +2285,46 @@ class StockAnalysisPipeline:
             }
             
             # 收集结果
-            for idx, future in enumerate(as_completed(future_to_code)):
-                code = future_to_code[future]
-                try:
-                    result = future.result(timeout=per_stock_timeout)
-                    if result and result.success:
-                        results.append(result)
-                        if single_stock_notify and send_notification and not dry_run:
-                            self._send_single_stock_notification(
-                                result,
-                                report_type=report_type,
-                                fallback_code=code,
+            try:
+                for idx, future in enumerate(as_completed(future_to_code, timeout=per_stock_timeout)):
+                    code = future_to_code[future]
+                    try:
+                        result = future.result(timeout=0)
+                        if result and result.success:
+                            results.append(result)
+                            if single_stock_notify and send_notification and not dry_run:
+                                self._send_single_stock_notification(
+                                    result,
+                                    report_type=report_type,
+                                    fallback_code=code,
+                                )
+                        elif result and not result.success:
+                            logger.warning(
+                                f"[{code}] 分析结果标记为失败，不计入汇总: "
+                                f"{result.error_message or '未知原因'}"
                             )
-                    elif result and not result.success:
-                        logger.warning(
-                            f"[{code}] 分析结果标记为失败，不计入汇总: "
-                            f"{result.error_message or '未知原因'}"
-                        )
 
-                    # Issue #128: 分析间隔 - 在个股分析和大盘分析之间添加延迟
-                    if idx < len(stock_codes) - 1 and analysis_delay > 0:
-                        # 注意：此 sleep 发生在"主线程收集 future 的循环"中，
-                        # 并不会阻止线程池中的任务同时发起网络请求。
-                        # 因此它对降低并发请求峰值的效果有限；真正的峰值主要由 max_workers 决定。
-                        # 该行为目前保留（按需求不改逻辑）。
-                        logger.debug(f"等待 {analysis_delay} 秒后继续下一只股票...")
-                        time.sleep(analysis_delay)
+                        # Issue #128: 分析间隔 - 在个股分析和大盘分析之间添加延迟
+                        if idx < len(stock_codes) - 1 and analysis_delay > 0:
+                            # 注意：此 sleep 发生在"主线程收集 future 的循环"中，
+                            # 并不会阻止线程池中的任务同时发起网络请求。
+                            # 因此它对降低并发请求峰值的效果有限；真正的峰值主要由 max_workers 决定。
+                            # 该行为目前保留（按需求不改逻辑）。
+                            logger.debug(f"等待 {analysis_delay} 秒后继续下一只股票...")
+                            time.sleep(analysis_delay)
 
-                except TimeoutError:
-                    logger.error(
-                        f"[{code}] 分析超时（>{per_stock_timeout:.0f}s），跳过该股票"
-                    )
-                except Exception as e:
-                    logger.error(f"[{code}] 任务执行失败: {e}")
+                    except Exception as e:
+                        logger.error(f"[{code}] 任务执行失败: {e}")
+            except TimeoutError:
+                timed_out = [
+                    c for f, c in future_to_code.items() if not f.done()
+                ]
+                logger.error(
+                    f"批量分析超时（>{per_stock_timeout:.0f}s 无新完成），"
+                    f"跳过剩余 {len(timed_out)} 只: {', '.join(timed_out)}"
+                )
+                for future in future_to_code:
+                    future.cancel()
         
         # 统计
         elapsed_time = time.time() - start_time
