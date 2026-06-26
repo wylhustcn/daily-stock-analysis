@@ -632,7 +632,10 @@ class AnalysisTaskQueue:
         try:
             # 导入分析服务（延迟导入避免循环依赖）
             from src.services.analysis_service import AnalysisService
-            
+            from src.config import get_config
+
+            per_stock_timeout = getattr(get_config(), 'per_stock_timeout_seconds', 300.0)
+
             # 执行分析
             service = AnalysisService()
 
@@ -648,17 +651,27 @@ class AnalysisTaskQueue:
                     stock_code=stock_code,
                     trigger_source="api",
                 )
-            result = service.analyze_stock(
-                stock_code=stock_code,
-                report_type=report_type,
-                force_refresh=force_refresh,
-                query_id=task_id,
-                trace_id=trace_id,
-                send_notification=notify,
-                progress_callback=_on_progress,
-                skills=skills,
-                analysis_phase=analysis_phase,
-            )
+
+            inner_executor = ThreadPoolExecutor(max_workers=1)
+            try:
+                future = inner_executor.submit(
+                    service.analyze_stock,
+                    stock_code=stock_code,
+                    report_type=report_type,
+                    force_refresh=force_refresh,
+                    query_id=task_id,
+                    trace_id=trace_id,
+                    send_notification=notify,
+                    progress_callback=_on_progress,
+                    skills=skills,
+                    analysis_phase=analysis_phase,
+                )
+                result = future.result(timeout=per_stock_timeout)
+            except TimeoutError:
+                future.cancel()
+                raise Exception(f"分析超时（>{per_stock_timeout:.0f}s），已跳过")
+            finally:
+                inner_executor.shutdown(wait=False)
             reset_run_diagnostic_context(diag_token)
             diag_token = None
             
