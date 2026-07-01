@@ -530,12 +530,15 @@ class AkshareFetcher(BaseFetcher):
             import time as _time
             api_start = _time.time()
 
-            df = ak.stock_zh_a_hist(
+            df = _akshare_call_with_timeout(
+                ak.stock_zh_a_hist,
                 symbol=stock_code,
                 period="daily",
                 start_date=start_date.replace('-', ''),
                 end_date=end_date.replace('-', ''),
-                adjust="qfq"
+                adjust="qfq",
+                timeout=self._history_call_timeout,
+                call_name="ak.stock_zh_a_hist",
             )
 
             api_elapsed = _time.time() - api_start
@@ -678,12 +681,15 @@ class AkshareFetcher(BaseFetcher):
             api_start = _time.time()
             
             # 调用 akshare 获取 ETF 日线数据
-            df = ak.fund_etf_hist_em(
+            df = _akshare_call_with_timeout(
+                ak.fund_etf_hist_em,
                 symbol=stock_code,
                 period="daily",
                 start_date=start_date.replace('-', ''),
                 end_date=end_date.replace('-', ''),
-                adjust="qfq"  # 前复权
+                adjust="qfq",
+                timeout=self._history_call_timeout,
+                call_name="ak.fund_etf_hist_em",
             )
             
             api_elapsed = _time.time() - api_start
@@ -742,9 +748,12 @@ class AkshareFetcher(BaseFetcher):
             
             # 调用 akshare 获取美股日线数据
             # stock_us_daily 返回全部历史数据，后续需要按日期过滤
-            df = ak.stock_us_daily(
+            df = _akshare_call_with_timeout(
+                ak.stock_us_daily,
                 symbol=symbol,
-                adjust="qfq"  # 前复权
+                adjust="qfq",
+                timeout=self._history_call_timeout,
+                call_name="ak.stock_us_daily",
             )
             
             api_elapsed = _time.time() - api_start
@@ -837,12 +846,15 @@ class AkshareFetcher(BaseFetcher):
             api_start = _time.time()
             
             # 调用 akshare 获取港股日线数据
-            df = ak.stock_hk_hist(
+            df = _akshare_call_with_timeout(
+                ak.stock_hk_hist,
                 symbol=code,
                 period="daily",
                 start_date=start_date.replace('-', ''),
                 end_date=end_date.replace('-', ''),
-                adjust="qfq"  # 前复权
+                adjust="qfq",
+                timeout=self._history_call_timeout,
+                call_name="ak.stock_hk_hist",
             )
             
             api_elapsed = _time.time() - api_start
@@ -984,7 +996,11 @@ class AkshareFetcher(BaseFetcher):
                         import time as _time
                         api_start = _time.time()
 
-                        df = ak.stock_zh_a_spot_em()
+                        df = _akshare_call_with_timeout(
+                            ak.stock_zh_a_spot_em,
+                            timeout=self._history_call_timeout,
+                            call_name="ak.stock_zh_a_spot_em",
+                        )
 
                         api_elapsed = _time.time() - api_start
                         logger.info(f"[API返回] ak.stock_zh_a_spot_em 成功: 返回 {len(df)} 只股票, 耗时 {api_elapsed:.2f}s")
@@ -1391,7 +1407,11 @@ class AkshareFetcher(BaseFetcher):
                         import time as _time
                         api_start = _time.time()
 
-                        df = ak.fund_etf_spot_em()
+                        df = _akshare_call_with_timeout(
+                            ak.fund_etf_spot_em,
+                            timeout=self._history_call_timeout,
+                            call_name="ak.fund_etf_spot_em",
+                        )
 
                         api_elapsed = _time.time() - api_start
                         logger.info(f"[API返回] ak.fund_etf_spot_em 成功: 返回 {len(df)} 只ETF, 耗时 {api_elapsed:.2f}s")
@@ -1491,7 +1511,11 @@ class AkshareFetcher(BaseFetcher):
                 import time as _time
                 api_start = _time.time()
 
-                df = ak.stock_hk_spot_em()
+                df = _akshare_call_with_timeout(
+                    ak.stock_hk_spot_em,
+                    timeout=self._history_call_timeout,
+                    call_name="ak.stock_hk_spot_em",
+                )
 
                 api_elapsed = _time.time() - api_start
                 logger.info(f"[API返回] ak.stock_hk_spot_em 成功: 返回 {len(df)} 只港股, 耗时 {api_elapsed:.2f}s")
@@ -1542,7 +1566,11 @@ class AkshareFetcher(BaseFetcher):
             import time as _time
             api_start = _time.time()
 
-            df_spot = ak.stock_hk_spot()
+            df_spot = _akshare_call_with_timeout(
+                ak.stock_hk_spot,
+                timeout=self._history_call_timeout,
+                call_name="ak.stock_hk_spot",
+            )
 
             api_elapsed = _time.time() - api_start
             logger.info(f"[API返回] ak.stock_hk_spot 成功: 返回 {len(df_spot)} 只港股, 耗时 {api_elapsed:.2f}s")
@@ -1613,7 +1641,12 @@ class AkshareFetcher(BaseFetcher):
             import time as _time
             api_start = _time.time()
             
-            df = ak.stock_cyq_em(symbol=stock_code)
+            df = _akshare_call_with_timeout(
+                ak.stock_cyq_em,
+                symbol=stock_code,
+                timeout=self._history_call_timeout,
+                call_name="ak.stock_cyq_em",
+            )
             
             api_elapsed = _time.time() - api_start
             
@@ -1661,11 +1694,14 @@ class AkshareFetcher(BaseFetcher):
         symbol = _to_sina_tx_symbol(stock_code)
 
         try:
-            df = ak.stock_zh_a_daily(
+            df = _akshare_call_with_timeout(
+                ak.stock_zh_a_daily,
                 symbol=symbol,
                 start_date=start_date,
                 end_date=end_date,
                 adjust="qfq",
+                timeout=_AKSHARE_HISTORY_CALL_TIMEOUT,
+                call_name="ak.stock_zh_a_daily(chip_fallback)",
             )
             if df is None or df.empty or len(df) < 30:
                 logger.warning("[筹码计算] %s K 线数据不足，无法计算筹码分布", stock_code)
@@ -1746,7 +1782,11 @@ class AkshareFetcher(BaseFetcher):
             self._enforce_rate_limit()
 
             # 使用 akshare 获取指数行情（新浪财经接口）
-            df = ak.stock_zh_index_spot_sina()
+            df = _akshare_call_with_timeout(
+                ak.stock_zh_index_spot_sina,
+                timeout=self._history_call_timeout,
+                call_name="ak.stock_zh_index_spot_sina",
+            )
 
             results = []
             if df is not None and not df.empty:
@@ -1805,7 +1845,11 @@ class AkshareFetcher(BaseFetcher):
             self._enforce_rate_limit()
 
             logger.info("[API调用] ak.stock_zh_a_spot_em() 获取市场统计...")
-            df = ak.stock_zh_a_spot_em()
+            df = _akshare_call_with_timeout(
+                ak.stock_zh_a_spot_em,
+                timeout=self._history_call_timeout,
+                call_name="ak.stock_zh_a_spot_em(market_stats)",
+            )
             if df is not None and not df.empty:
                 return self._calc_market_stats(df)
         except Exception as e:
@@ -1817,7 +1861,11 @@ class AkshareFetcher(BaseFetcher):
             self._enforce_rate_limit()
 
             logger.info("[API调用] ak.stock_zh_a_spot() 获取市场统计(新浪)...")
-            df = ak.stock_zh_a_spot()
+            df = _akshare_call_with_timeout(
+                ak.stock_zh_a_spot,
+                timeout=self._history_call_timeout,
+                call_name="ak.stock_zh_a_spot",
+            )
             if df is not None and not df.empty:
                 return self._calc_market_stats(df)
         except Exception as e:
@@ -1948,7 +1996,11 @@ class AkshareFetcher(BaseFetcher):
             self._enforce_rate_limit()
 
             logger.info("[API调用] ak.stock_board_industry_name_em() 获取板块排行...")
-            df = ak.stock_board_industry_name_em()
+            df = _akshare_call_with_timeout(
+                ak.stock_board_industry_name_em,
+                timeout=self._history_call_timeout,
+                call_name="ak.stock_board_industry_name_em",
+            )
             if df is not None and not df.empty:
                 change_col = '涨跌幅'
                 name = '板块名称'
@@ -1963,7 +2015,12 @@ class AkshareFetcher(BaseFetcher):
             self._enforce_rate_limit()
 
             logger.info("[API调用] ak.stock_sector_spot() 获取行业板块排行(新浪)...")
-            df = ak.stock_sector_spot(indicator='行业')
+            df = _akshare_call_with_timeout(
+                ak.stock_sector_spot,
+                indicator='行业',
+                timeout=self._history_call_timeout,
+                call_name="ak.stock_sector_spot",
+            )
             if df is None or df.empty:
                 return None
             change_col = '涨跌幅'
@@ -1983,7 +2040,11 @@ class AkshareFetcher(BaseFetcher):
             self._enforce_rate_limit()
 
             logger.info("[API调用] ak.stock_board_concept_name_em() 获取概念排行...")
-            df = ak.stock_board_concept_name_em()
+            df = _akshare_call_with_timeout(
+                ak.stock_board_concept_name_em,
+                timeout=self._history_call_timeout,
+                call_name="ak.stock_board_concept_name_em",
+            )
             if df is None or df.empty:
                 return None
 
@@ -2039,7 +2100,11 @@ class AkshareFetcher(BaseFetcher):
         self._enforce_rate_limit()
 
         logger.info("[API调用] ak.stock_hot_rank_em() 获取东方财富人气股...")
-        df = ak.stock_hot_rank_em()
+        df = _akshare_call_with_timeout(
+            ak.stock_hot_rank_em,
+            timeout=_AKSHARE_HISTORY_CALL_TIMEOUT,
+            call_name="ak.stock_hot_rank_em",
+        )
         if df is None or df.empty:
             return None
 
@@ -2061,7 +2126,11 @@ class AkshareFetcher(BaseFetcher):
         self._enforce_rate_limit()
 
         logger.info("[API调用] ak.stock_hot_up_em() 获取东方财富飙升榜...")
-        df = ak.stock_hot_up_em()
+        df = _akshare_call_with_timeout(
+            ak.stock_hot_up_em,
+            timeout=_AKSHARE_HISTORY_CALL_TIMEOUT,
+            call_name="ak.stock_hot_up_em",
+        )
         if df is None or df.empty:
             return None
 
@@ -2091,7 +2160,12 @@ class AkshareFetcher(BaseFetcher):
         self._enforce_rate_limit()
 
         logger.info("[API调用] ak.stock_hot_follow_xq() 获取雪球关注榜...")
-        df = ak.stock_hot_follow_xq(symbol='最热门')
+        df = _akshare_call_with_timeout(
+            ak.stock_hot_follow_xq,
+            symbol='最热门',
+            timeout=_AKSHARE_HISTORY_CALL_TIMEOUT,
+            call_name="ak.stock_hot_follow_xq",
+        )
         if df is None or df.empty:
             return None
 
@@ -2121,7 +2195,12 @@ class AkshareFetcher(BaseFetcher):
             self._enforce_rate_limit()
 
             logger.info("[API调用] ak.stock_zt_pool_em(date=%s) 获取涨停池...", query_date)
-            df = ak.stock_zt_pool_em(date=query_date)
+            df = _akshare_call_with_timeout(
+                ak.stock_zt_pool_em,
+                date=query_date,
+                timeout=_AKSHARE_HISTORY_CALL_TIMEOUT,
+                call_name="ak.stock_zt_pool_em",
+            )
             if df is None or df.empty:
                 return None
 
